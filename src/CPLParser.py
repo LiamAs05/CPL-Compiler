@@ -1,101 +1,132 @@
+from sly import Parser
+from CPLLexer import CPLLexer
 
-class TreeParser(Parser):
+
+class CPLParser(Parser):
     # Get the token list from the lexer (required)
-    tokens = TreeLexer.tokens
+    tokens = CPLLexer.tokens
 
     # Grammar rules and actions
-    @_("tree")
-    def S(self, p):
+    @_("declarations stmt_block")
+    def program(self, p):
         return p.tree.val
 
-    @_("LBRACE SUM treelist RBRACE")
-    def tree(self, p):
-        return Tree(p.treelist.sum, p.treelist.height + 1)
+    @_("declarations declaration")
+    def declarations(self, p):
+        pass
 
-    @_("LBRACE ZERO treelist RBRACE")
-    def tree(self, p):
-        return Tree(0, p.treelist.height + 1)
+    @_("")
+    def declarations(self, p):
+        pass
 
-    @_("LBRACE HEIGHT treelist RBRACE")
-    def tree(self, p):
-        return Tree(p.treelist.height + 1, p.treelist.height + 1)
+    @_("idlist COLON type SEMICOLON")
+    def declaration(self, p):
+        pass
 
-    @_("LBRACE DOUBLE tree RBRACE")
-    def tree(self, p):
-        return Tree(p.tree.val * 2, p.tree.height + 1)
+    @_("FLOAT")
+    def type(self, p):
+        pass
 
-    @_("NUMBER")
-    def tree(self, p):
-        return Tree(int(p.NUMBER), 0)
+    @_("INT")
+    def type(self, p):
+        pass
 
-    @_("treelist tree")
-    def treelist(self, p):
-        return Treelist(
-            p.treelist.sum + p.tree.val, max(p.treelist.height, p.tree.height)
-        )
+    @_("idlist COMMA ID")
+    def idlist(self, p):
+        pass
 
-    @_("tree")
-    def treelist(self, p):
-        return Treelist(p.tree.val, p.tree.height)
+    @_("ID")
+    def idlist(self, p):
+        pass
 
-    def error(self, p):
-        print(rf"An error was found in line {p.lineno}".upper())
-        if not p:
-            print("End of File!")
-            return
+    @_("assignment_stmt")
+    def stmt(self, p):
+        pass
 
-        while True:
-            tok = next(self.tokens, None)
-            if not tok:
-                break
-        self.restart()
-class TreeParser(Parser):
-    # Get the token list from the lexer (required)
-    tokens = TreeLexer.tokens
+    @_("input_stmt")
+    def stmt(self, p):
+        pass
 
-    # Grammar rules and actions
-    @_("tree")
-    def S(self, p):
-        return p.tree.val
+    @_("output_stmt")
+    def stmt(self, p):
+        pass
 
-    @_("LBRACE SUM treelist RBRACE")
-    def tree(self, p):
-        return Tree(p.treelist.sum, p.treelist.height + 1)
+    @_("if_stmt")
+    def stmt(self, p):
+        pass
 
-    @_("LBRACE ZERO treelist RBRACE")
-    def tree(self, p):
-        return Tree(0, p.treelist.height + 1)
+    @_("while_stmt")
+    def stmt(self, p):
+        pass
 
-    @_("LBRACE HEIGHT treelist RBRACE")
-    def tree(self, p):
-        return Tree(p.treelist.height + 1, p.treelist.height + 1)
+    @_("switch_stmt")
+    def stmt(self, p):
+        pass
 
-    @_("LBRACE DOUBLE tree RBRACE")
-    def tree(self, p):
-        return Tree(p.tree.val * 2, p.tree.height + 1)
+    @_("break_stmt")
+    def stmt(self, p):
+        pass
 
-    @_("NUMBER")
-    def tree(self, p):
-        return Tree(int(p.NUMBER), 0)
+    @_("stmt_block")
+    def stmt(self, p):
+        pass
+    
+    @_("ID ASSIGN expression SEMICOLON")
+    def assignment_stmt(self, p):
+        pass
+    
+    @_("INPUT LBRACE ID RBRACE SEMICOLON")
+    def input_stmt(self, p):
+        pass
+    
+    @_("OUTPUT LBRACE expression RBRACE SEMICOLON")
+    def output_stmt(self, p):
+        pass
+    
+    @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
+    def if_stmt(self, p):
+        pass
+    
+    @_("WHILE LBRACE boolexpr RBRACE stmt")
+    def while_stmt(self, p):
+        pass
+    
+    @_("LCBRACE stmtlist RCBRACE")
+    def stmt_block(self, p):
+        pass
+    
+    @_("stmtlist stmt")
+    def stmtlist(self, p):
+        pass
+    
+    @_("")
+    def stmtlist(self, p):
+        pass
+    
+    @_("boolexpr OR boolterm")
+    def boolexpr(self, p):
+        pass
+    
+    @_("boolterm")
+    def boolexpr(self, p):
+        pass
+    
+    @_("boolterm AND boolfactor")
+    def boolterm(self, p):
+        pass
+    
+    @_("boolfactor")
+    def boolterm(self, p):
+        pass
+    
+    # def error(self, p):
+    #     print(rf"An error was found in line {p.lineno}".upper())
+    #     if not p:
+    #         print("End of File!")
+    #         return
 
-    @_("treelist tree")
-    def treelist(self, p):
-        return Treelist(
-            p.treelist.sum + p.tree.val, max(p.treelist.height, p.tree.height)
-        )
-
-    @_("tree")
-    def treelist(self, p):
-        return Treelist(p.tree.val, p.tree.height)
-
-    def error(self, p):
-        print(rf"An error was found in line {p.lineno}".upper())
-        if not p:
-            print("End of File!")
-            return
-
-        while True:
-            tok = next(self.tokens, None)
-            if not tok:
-                break
-        self.restart()
+    #     while True:
+    #         tok = next(self.tokens, None)
+    #         if not tok:
+    #             break
+    #     self.restart()

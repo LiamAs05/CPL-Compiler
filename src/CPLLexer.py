@@ -15,10 +15,10 @@ class CPLLexer(Lexer):
         OUTPUT,
         SWITCH,
         WHILE,
-        LEFT_BRACE,
-        RIGHT_BRACE,
-        LEFT_CURLY_BRACE,
-        RIGHT_CURLY_BRACE,
+        LBRACE,
+        RBRACE,
+        LCBRACE,
+        RCBRACE,
         COMMA,
         COLON,
         SEMICOLON,
@@ -50,10 +50,10 @@ class CPLLexer(Lexer):
     OUTPUT = r"output"
     SWITCH = r"switch"
     WHILE = r"while"
-    LEFT_CURLY_BRACE = r"\{"
-    RIGHT_CURLY_BRACE = r"\}"
-    LEFT_BRACE = r"\("
-    RIGHT_BRACE = r"\)"
+    LCBRACE = r"\{"
+    RCBRACE = r"\}"
+    LBRACE = r"\("
+    RBRACE = r"\)"
     COMMA = r","
     COLON = r":"
     SEMICOLON = r";"
