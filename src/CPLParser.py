@@ -9,13 +9,9 @@ class CPLParser(Parser):
     # Grammar rules and actions
     @_("declarations stmt_block")
     def program(self, p):
-        return p.tree.val
-
-    @_("declarations declaration")
-    def declarations(self, p):
         pass
 
-    @_("")
+    @_("declarations declaration")
     def declarations(self, p):
         pass
 
@@ -59,66 +55,94 @@ class CPLParser(Parser):
     def stmt(self, p):
         pass
 
-    @_("switch_stmt")
-    def stmt(self, p):
-        pass
-
-    @_("break_stmt")
-    def stmt(self, p):
-        pass
-
     @_("stmt_block")
     def stmt(self, p):
         pass
-    
+
     @_("ID ASSIGN expression SEMICOLON")
     def assignment_stmt(self, p):
         pass
-    
+
     @_("INPUT LBRACE ID RBRACE SEMICOLON")
     def input_stmt(self, p):
         pass
-    
+
     @_("OUTPUT LBRACE expression RBRACE SEMICOLON")
     def output_stmt(self, p):
         pass
-    
+
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
     def if_stmt(self, p):
         pass
-    
+
     @_("WHILE LBRACE boolexpr RBRACE stmt")
     def while_stmt(self, p):
         pass
-    
+
     @_("LCBRACE stmtlist RCBRACE")
     def stmt_block(self, p):
         pass
-    
+
     @_("stmtlist stmt")
     def stmtlist(self, p):
         pass
-    
-    @_("")
-    def stmtlist(self, p):
-        pass
-    
+
     @_("boolexpr OR boolterm")
     def boolexpr(self, p):
         pass
-    
+
     @_("boolterm")
     def boolexpr(self, p):
         pass
-    
+
     @_("boolterm AND boolfactor")
     def boolterm(self, p):
         pass
-    
+
     @_("boolfactor")
     def boolterm(self, p):
         pass
-    
+
+    @_("NOT LBRACE boolexpr RBRACE")
+    def boolfactor(self, p):
+        pass
+
+    @_("expression RELOP expression")
+    def boolfactor(self, p):
+        pass
+
+    @_("expression ADDOP term")
+    def expression(self, p):
+        pass
+
+    @_("term")
+    def expression(self, p):
+        pass
+
+    @_("term MULOP factor")
+    def term(self, p):
+        pass
+
+    @_("factor")
+    def term(self, p):
+        pass
+
+    @_("LBRACE expression RBRACE")
+    def factor(self, p):
+        pass
+
+    @_("CAST LBRACE expression RBRACE")
+    def factor(self, p):
+        pass
+
+    @_("ID")
+    def factor(self, p):
+        pass
+
+    @_("NUM")
+    def factor(self, p):
+        pass
+
     # def error(self, p):
     #     print(rf"An error was found in line {p.lineno}".upper())
     #     if not p:
