@@ -8,13 +8,12 @@ def main():
                 input(a);
                 input(b);
                 if (a < b)
-                output(a);
+                output(a); /* COMMENT */
                 else
                 output(b);
                 }"""
-    compiler = CPLCompiler()
-    compiler.run_lexer(sample)
-    print(compiler.symtab)
+    compiler = CPLCompiler(sample)
+    compiler.run()
 
 
 if __name__ == "__main__":

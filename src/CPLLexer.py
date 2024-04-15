@@ -3,17 +3,12 @@ from sly import Lexer
 
 class CPLLexer(Lexer):
     tokens = {
-        ERROR,
-        BREAK,
-        CASE,
-        DEFAULT,
         ELSE,
         FLOAT,
         IF,
         INPUT,
         INT,
         OUTPUT,
-        SWITCH,
         WHILE,
         LBRACE,
         RBRACE,
@@ -39,16 +34,12 @@ class CPLLexer(Lexer):
     ignore = r" "
 
     # Regular expression rules for tokens
-    BREAK = r"break"
-    CASE = r"case"
-    DEFAULT = r"default"
     ELSE = r"else"
     FLOAT = r"float"
     IF = r"if"
     INPUT = r"input"
     INT = r"int"
     OUTPUT = r"output"
-    SWITCH = r"switch"
     WHILE = r"while"
     LCBRACE = r"\{"
     RCBRACE = r"\}"

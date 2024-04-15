@@ -1,5 +1,11 @@
 from sly import Parser
 from CPLLexer import CPLLexer
+from dataclasses import dataclass
+
+
+@dataclass
+class Program:
+    code: str
 
 
 class CPLParser(Parser):
@@ -12,6 +18,10 @@ class CPLParser(Parser):
         pass
 
     @_("declarations declaration")
+    def declarations(self, p):
+        pass
+    
+    @_("")
     def declarations(self, p):
         pass
 
@@ -86,6 +96,10 @@ class CPLParser(Parser):
     @_("stmtlist stmt")
     def stmtlist(self, p):
         pass
+    
+    @_("")
+    def stmtlist(self, p):
+        pass
 
     @_("boolexpr OR boolterm")
     def boolexpr(self, p):
@@ -143,14 +157,15 @@ class CPLParser(Parser):
     def factor(self, p):
         pass
 
-    # def error(self, p):
-    #     print(rf"An error was found in line {p.lineno}".upper())
-    #     if not p:
-    #         print("End of File!")
-    #         return
+    def error(self, p):
+        if not p:
+            print("End of File!")
+            return
+        
+        print(rf"An error was found in line {p.lineno}".upper())
 
-    #     while True:
-    #         tok = next(self.tokens, None)
-    #         if not tok:
-    #             break
-    #     self.restart()
+        while True:
+            tok = next(self.tokens, None)
+            if not tok:
+                break
+        self.restart()
