@@ -1,0 +1,10 @@
+a, b: float;
+
+{
+    input(a);
+    input(b);
+    if (a < b)
+    output(a); /* COMMENT */
+    else
+    output(b);
+}
