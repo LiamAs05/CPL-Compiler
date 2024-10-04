@@ -1,3 +1,5 @@
+# type: ignore
+
 import random
 import string
 from dataclasses import dataclass

@@ -1,3 +1,5 @@
+# type: ignore
+
 from sly import Lexer
 
 
