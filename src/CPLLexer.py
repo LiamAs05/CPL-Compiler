@@ -61,7 +61,7 @@ class CPLLexer(Lexer):
     NOT = r"!"
 
     # Line number tracking
-    @_(r"\n+")
+    @_(r"\s+")
     def ignore_newline(self, t):
         self.lineno += t.value.count("\n")
 

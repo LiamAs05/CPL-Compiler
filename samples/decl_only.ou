@@ -1,0 +1,11 @@
+a, b: float;
+c, d: int;
+e, f: int;
+f4: int;
+f5: int;
+m16, f35: float;
+m17, f36, rax, r23: int;
+
+{
+
+}

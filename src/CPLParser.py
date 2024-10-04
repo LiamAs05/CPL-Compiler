@@ -1,9 +1,11 @@
-from sly import Parser
-from CPLLexer import CPLLexer
-from typing import Dict, List
-from dataclasses import dataclass
-import string
 import random
+import string
+from dataclasses import dataclass
+from typing import Dict, List
+
+from sly import Parser
+
+from CPLLexer import CPLLexer
 
 
 @dataclass
@@ -12,6 +14,7 @@ class IDList:
 
 
 class CPLParser(Parser):
+    start = "program"
     tokens = CPLLexer.tokens
 
     def __init__(self):
@@ -20,7 +23,7 @@ class CPLParser(Parser):
 
     def relop_to_instruction(self, expr1, expr2, relop):
         prefix = self.symtab[expr1]
-        var = self.random_id_generator(prefix)
+        var = self.random_id_generator()
         code = {
             "==": f"{prefix}EQL {var} {expr1} {expr2}\n",
             "!=": f"{prefix}NQL {var} {expr1} {expr2}",
@@ -38,38 +41,47 @@ class CPLParser(Parser):
         if relop in [">=", "<="]:
             self.label_counter += 1
         return code
-    
+
     @staticmethod
     def __gen(size):
         return "".join(random.choice(string.ascii_lowercase) for _ in range(size))
 
     def random_id_generator(self, type="I"):
+        MAX_TRIES = 5
+        GEN_SIZE = 1
+        tries = 1
         res = CPLParser.__gen(1)
+
         while res in self.symtab:
-            size = random.randint(1, 4)     
+            if tries < MAX_TRIES:
+                tries += 1
+            else:
+                tries = 0
+                GEN_SIZE += 1
+            size = random.randint(1, GEN_SIZE)
             res = CPLParser.__gen(size)
 
         self.symtab[res] = type
         return res
-        
 
     @_("declarations stmt_block")
     def program(self, p):
-        return p.declarations + p.stmt_block + "HALT\n"
+        return p.stmt_block + "HALT\n"
+
+    # PART A - Declarations, DOES NOT GENERATE CODE
 
     @_("declarations declaration")
     def declarations(self, p):
-        return p.declarations + p.declaration
+        pass
 
     @_("")
     def declarations(self, p):
-        return ""
+        pass
 
     @_("idlist COLON type SEMICOLON")
     def declaration(self, p):
         for _id in p.idlist.l:
             self.symtab[_id] = p.type
-        return ""
 
     @_("FLOAT")
     def type(self, p):
@@ -87,6 +99,8 @@ class CPLParser(Parser):
     @_("ID")
     def idlist(self, p):
         return IDList([p.ID])
+
+    # PART B - Code! Assume symbol table is built :)
 
     @_("assignment_stmt")
     def stmt(self, p):
@@ -110,7 +124,6 @@ class CPLParser(Parser):
 
     @_("stmt_block")
     def stmt(self, p):
-        self.label_counter
         return p.stmt_block
 
     @_("ID ASSIGN expression SEMICOLON")
@@ -127,15 +140,16 @@ class CPLParser(Parser):
 
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
     def if_stmt(self, p):
-        return ""
+        pass
 
     @_("WHILE LBRACE boolexpr RBRACE stmt")
     def while_stmt(self, p):
-        return ""
+        pass
 
     @_("LCBRACE stmtlist RCBRACE")
     def stmt_block(self, p):
-        return f"{p.stmtlist}\nL{self.label_counter}:\n"
+        stmtlist = f"{p.stmtlist}\n" if p.stmtlist else ""
+        return f"{stmtlist}L{self.label_counter}:\n"
 
     @_("stmtlist stmt")
     def stmtlist(self, p):
@@ -143,19 +157,19 @@ class CPLParser(Parser):
 
     @_("")
     def stmtlist(self, p):
-        return ""
+        pass
 
     @_("boolexpr OR boolterm")
     def boolexpr(self, p):
-        return ""
+        pass
 
     @_("boolterm")
     def boolexpr(self, p):
-        return ""
+        pass
 
     @_("boolterm AND boolfactor")
     def boolterm(self, p):
-        return ""
+        pass
 
     @_("boolfactor")
     def boolterm(self, p):
@@ -163,7 +177,7 @@ class CPLParser(Parser):
 
     @_("NOT LBRACE boolexpr RBRACE")
     def boolfactor(self, p):
-        return ""
+        pass
 
     @_("expression RELOP expression")
     def boolfactor(self, p):
@@ -173,9 +187,13 @@ class CPLParser(Parser):
     def expression(self, p):
         prefix = self.symtab[p.factor]
         if p.ADDOP == "+":
-            return f"{prefix}ADD {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            return (
+                f"{prefix}ADD {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            )
         elif p.ADDOP == "-":
-            return f"{prefix}SUB {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            return (
+                f"{prefix}SUB {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            )
 
     @_("term")
     def expression(self, p):
@@ -185,9 +203,13 @@ class CPLParser(Parser):
     def term(self, p):
         prefix = self.symtab[p.factor]
         if p.MULOP == "*":
-            return f"{prefix}MLT {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            return (
+                f"{prefix}MLT {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            )
         elif p.MULOP == "/":
-            return f"{prefix}DIV {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            return (
+                f"{prefix}DIV {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
+            )
 
     @_("factor")
     def term(self, p):
@@ -202,7 +224,7 @@ class CPLParser(Parser):
         if "int" in p.CAST:
             self.symtab[p.expression] = "I"
             return f"RTOI {p.expression}\n"
-        
+
         self.symtab[p.expression] = "R"
         return f"ITOR {p.expression}\n"
 

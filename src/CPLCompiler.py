@@ -1,6 +1,7 @@
+from typing import List
+
 from CPLLexer import CPLLexer
 from CPLParser import CPLParser
-from typing import Dict, List
 
 
 class CPLCompiler:
@@ -13,8 +14,7 @@ class CPLCompiler:
 
     def run(self):
         self._tokens = self._lexer.tokenize(self._cpl_program)
-        self._parser.parse(self._tokens)
-        self.program = self._parser.program
+        self._output_program = self._parser.parse(self._tokens)
 
     @property
     def program(self):

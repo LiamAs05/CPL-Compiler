@@ -1,7 +1,8 @@
-import sys
 import argparse
-from CPLCompiler import CPLCompiler
+import sys
 from typing import Tuple
+
+from CPLCompiler import CPLCompiler
 
 
 def main(data: str, outfile: str):
