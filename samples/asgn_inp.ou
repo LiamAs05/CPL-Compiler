@@ -1,0 +1,10 @@
+a, b: float;
+c: int;
+
+{
+    input(a);
+    input(b);
+    input(c);
+    b = 5 * 3.2;
+    a = b * (b + 5 * (a + 2 * b)) + c;
+}

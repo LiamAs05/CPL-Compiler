@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["samples/decl_only.ou"]
+            "args": ["samples/asgn_inp.ou"]
         }
     ]
 }

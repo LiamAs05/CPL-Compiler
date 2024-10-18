@@ -1,18 +1,32 @@
 # type: ignore
 
 import random
-import string
 from dataclasses import dataclass
 from typing import Dict, List
-
+from collections import Counter
 from sly import Parser
 
 from CPLLexer import CPLLexer
 
 
+def is_number(s: str):
+    return s.replace(".", "", 1).isdigit()
+
+
 @dataclass
 class IDList:
     l: List[str]
+
+
+class Stack:
+    def __init__(self):
+        self._data = []
+
+    def pop(self):
+        return self._data.pop()
+
+    def push(self, x):
+        self._data.append(x)
 
 
 class CPLParser(Parser):
@@ -21,10 +35,12 @@ class CPLParser(Parser):
 
     def __init__(self):
         self._symtab: Dict[str, str] = {}
+        self.code: str = ""
         self.label_counter = 0  # Increment after using
+        self.label_stack = Stack()
 
     def relop_to_instruction(self, expr1, expr2, relop):
-        prefix = self.symtab[expr1]
+        prefix = self.symtab.get(expr1) or self.symtab.get(expr2)
         var = self.random_id_generator()
         code = {
             "==": f"{prefix}EQL {var} {expr1} {expr2}\n",
@@ -44,9 +60,20 @@ class CPLParser(Parser):
             self.label_counter += 1
         return code
 
+    def determine_prefix(self, expr: str):
+        freq = Counter(expr)
+        if is_number(expr):
+            return "I" if freq["."] == 0 else "R"
+        return self.symtab.get(expr)
+
+    def determine_expressions_prefix(self, expr1, expr2):
+        if self.determine_prefix(expr1) == "R" or self.determine_prefix(expr2) == "R":
+            return "R"
+        return "I"
+
     @staticmethod
     def __gen(size):
-        return "".join(random.choice(string.ascii_lowercase) for _ in range(size))
+        return "t" + "".join(random.choice("0123456789") for _ in range(size))
 
     def random_id_generator(self, type="I"):
         MAX_TRIES = 5
@@ -68,7 +95,7 @@ class CPLParser(Parser):
 
     @_("declarations stmt_block")
     def program(self, p):
-        return p.stmt_block + "HALT\n"
+        return f"{self.code}HALT\n"
 
     # PART A - Declarations, DOES NOT GENERATE CODE
 
@@ -82,6 +109,7 @@ class CPLParser(Parser):
 
     @_("idlist COLON type SEMICOLON")
     def declaration(self, p):
+        # Add vars to symbol table
         for _id in p.idlist.l:
             self.symtab[_id] = p.type
 
@@ -102,31 +130,32 @@ class CPLParser(Parser):
     def idlist(self, p):
         return IDList([p.ID])
 
-    # PART B - Code! Assume symbol table is built :)
+    # END OF DECLARATIONS
+    # PART B - Code!
 
     @_("assignment_stmt")
     def stmt(self, p):
-        return p.assignment_stmt
+        self.code += p.assignment_stmt
 
     @_("input_stmt")
     def stmt(self, p):
-        return p.input_stmt
+        self.code += p.input_stmt
 
     @_("output_stmt")
     def stmt(self, p):
-        return p.output_stmt
+        self.code += p.output_stmt
 
     @_("if_stmt")
     def stmt(self, p):
-        return p.if_stmt
+        self.code += p.if_stmt
 
     @_("while_stmt")
     def stmt(self, p):
-        return p.while_stmt
+        self.code += p.while_stmt
 
     @_("stmt_block")
     def stmt(self, p):
-        return p.stmt_block
+        self.code += p.stmt_block
 
     @_("ID ASSIGN expression SEMICOLON")
     def assignment_stmt(self, p):
@@ -138,7 +167,7 @@ class CPLParser(Parser):
 
     @_("OUTPUT LBRACE expression RBRACE SEMICOLON")
     def output_stmt(self, p):
-        return f"IPRT {p.expression}\n"
+        return f"{self.symtab[p.expression]}PRT {p.expression}\n"
 
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
     def if_stmt(self, p):
@@ -150,12 +179,12 @@ class CPLParser(Parser):
 
     @_("LCBRACE stmtlist RCBRACE")
     def stmt_block(self, p):
-        stmtlist = f"{p.stmtlist}\n" if p.stmtlist else ""
-        return f"{stmtlist}L{self.label_counter}:\n"
+        self.code += p.stmtlist or ""
 
     @_("stmtlist stmt")
     def stmtlist(self, p):
-        return p.stmtlist + p.stmt
+        self.code += p.stmtlist or ""
+        self.code += p.stmt or ""
 
     @_("")
     def stmtlist(self, p):
@@ -187,15 +216,11 @@ class CPLParser(Parser):
 
     @_("expression ADDOP term")
     def expression(self, p):
-        prefix = self.symtab[p.factor]
-        if p.ADDOP == "+":
-            return (
-                f"{prefix}ADD {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
-            )
-        elif p.ADDOP == "-":
-            return (
-                f"{prefix}SUB {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
-            )
+        prefix = self.determine_expressions_prefix(p.expression, p.term)
+        tmp = self.random_id_generator(prefix)
+        instruction = "ADD" if p.ADDOP == "+" else "SUB"
+        self.code += f"{prefix}{instruction} {tmp} {p.term} {p.expression}\n"
+        return tmp
 
     @_("term")
     def expression(self, p):
@@ -203,15 +228,11 @@ class CPLParser(Parser):
 
     @_("term MULOP factor")
     def term(self, p):
-        prefix = self.symtab[p.factor]
-        if p.MULOP == "*":
-            return (
-                f"{prefix}MLT {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
-            )
-        elif p.MULOP == "/":
-            return (
-                f"{prefix}DIV {self.random_id_generator(prefix)} {p.term} {p.factor}\n"
-            )
+        prefix = self.determine_expressions_prefix(p.term, p.factor)
+        tmp = self.random_id_generator(prefix)
+        instruction = "MLT" if p.MULOP == "*" else "DIV"
+        self.code += f"{prefix}{instruction} {tmp} {p.term} {p.factor}\n"
+        return tmp
 
     @_("factor")
     def term(self, p):

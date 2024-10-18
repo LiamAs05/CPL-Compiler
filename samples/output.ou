@@ -1,0 +1,15 @@
+a, b: float;
+c, d: int;
+
+{
+    output(a);
+    output(b);
+    output(5*2.5);
+    output(5*2.5*(a+b));
+    output(a + 5);
+    output(5 + a);
+    output(a+b);
+    input(c);
+    input(d);
+    output(c+d);
+}
