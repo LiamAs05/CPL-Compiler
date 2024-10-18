@@ -3,6 +3,5 @@ c: int;
 
 {
     a = 5 * 3.2;
-    static_cast<float>(c);
-    c = b;
+    c = static_cast<float>(c);
 }

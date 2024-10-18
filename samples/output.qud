@@ -1,20 +1,24 @@
 RPRT a
 RPRT b
-RMLT t8 5 2.5
+ITOR t1 5
+RMLT t2 t1 2.5
+RPRT t2
+ITOR t3 5
+RMLT t4 t3 2.5
+RADD t5 a b
+RMLT t6 t4 t5
+RPRT t6
+ITOR t7 5
+RADD t8 a t7
 RPRT t8
-RMLT t4 5 2.5
-RADD t5 b a
-RMLT t0 t4 t5
-RPRT t0
-RADD t1 5 a
-RPRT t1
-RADD t9 a 5
-RPRT t9
-RADD t7 b a
-RPRT t7
+ITOR t9 5
+RADD t10 t9 a
+RPRT t10
+RADD t11 a b
+RPRT t11
 IINP c
 IINP d
-IADD t6 d c
-IPRT t6
+IADD t12 c d
+IPRT t12
 HALT
 Signature Line - Liam Aslan, 215191347

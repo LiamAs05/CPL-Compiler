@@ -1,12 +1,14 @@
 # type: ignore
 
-import random
-from dataclasses import dataclass
-from typing import Dict, List
 from collections import Counter
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
 from sly import Parser
 
 from CPLLexer import CPLLexer
+
+ERR = -1
 
 
 def is_number(s: str):
@@ -29,6 +31,24 @@ class Stack:
         self._data.append(x)
 
 
+class Queue:
+    def __init__(self):
+        self._data = []
+
+    def pop(self):
+        return self._data.pop(0)
+
+    def push(self, x):
+        self._data.append(x)
+
+    def empty(self):
+        return len(self._data) == 0
+
+    def print(self):
+        while not self.empty():
+            print(self.pop())
+
+
 class CPLParser(Parser):
     start = "program"
     tokens = CPLLexer.tokens
@@ -37,11 +57,13 @@ class CPLParser(Parser):
         self._symtab: Dict[str, str] = {}
         self.code: str = ""
         self.label_counter = 0  # Increment after using
+        self.var_counter = 0
         self.label_stack = Stack()
+        self.error_queue = Queue()
 
     def relop_to_instruction(self, expr1, expr2, relop):
         prefix = self.symtab.get(expr1) or self.symtab.get(expr2)
-        var = self.random_id_generator()
+        var = self.generate_tmp_id()
         code = {
             "==": f"{prefix}EQL {var} {expr1} {expr2}\n",
             "!=": f"{prefix}NQL {var} {expr1} {expr2}",
@@ -60,41 +82,101 @@ class CPLParser(Parser):
             self.label_counter += 1
         return code
 
-    def determine_prefix(self, expr: str):
+    def determine_prefix(self, expr: str) -> str:
+        """
+        Internal function which determines the type of a single expression
+
+        examples:
+        self.determine_prefix(5) -> "I"
+        self.determine_prefix(5.0) -> "R"
+        self.determine_prefix(t1) -> SymbolTable[t1]
+
+        Args:
+            expr (str): _description_
+
+        Returns:
+            str: _description_
+        """
         freq = Counter(expr)
         if is_number(expr):
             return "I" if freq["."] == 0 else "R"
         return self.symtab.get(expr)
 
-    def determine_expressions_prefix(self, expr1, expr2):
-        if self.determine_prefix(expr1) == "R" or self.determine_prefix(expr2) == "R":
+    def determine_expressions_prefix(self, lineno, expr1, expr2):
+        """
+        Determines the prefix of an instruction with two operands.
+        If an error occurs, returns ERR code and pushes to error queue.
+
+        Args:
+            lineno (int)
+            expr1 (str): first operand
+            expr2 (str): second operand
+
+        Returns:
+            str: prefix
+        """
+        if self.determine_prefix(expr1) != self.determine_prefix(expr2):
+            self.error_queue.push(
+                f"ERROR in line {lineno}: Operands must be of same type."
+            )
+            return ERR
+
+        if self.determine_prefix(expr1) == "R":
             return "R"
         return "I"
 
-    @staticmethod
-    def __gen(size):
-        return "t" + "".join(random.choice("0123456789") for _ in range(size))
+    def determine_prefix_noerror(self, expr1, expr2) -> Tuple[str, int, str]:
+        """
+        For use with functions that require implicit casting,
+        for example addition and multiplication, where two mismatched operands don't result in an error.
 
-    def random_id_generator(self, type="I"):
-        MAX_TRIES = 5
-        GEN_SIZE = 1
-        tries = 1
-        res = CPLParser.__gen(1)
+        Args:
+            expr1 (str): first operand
+            expr2 (str): second operand
+
+        Returns:
+            Tuple[str, int, str]:
+
+            -   instruction prefix
+            -   cast operand index
+            -   cast result
+
+            if a cast was performed the second and third return values indicate which variable to replace with the cast result.
+            if a cast wasn't performed they are 0 and None.
+        """
+        expr1_prefix = self.determine_prefix(expr1)
+        expr2_prefix = self.determine_prefix(expr2)
+
+        if expr1_prefix == expr2_prefix:
+            return expr1_prefix, 0, None
+
+        if expr1_prefix == "I":
+            return "R", 1, self.cast("R", expr1)
+
+        return "R", 2, self.cast("R", expr2)
+
+    def __gen(self):
+        self.var_counter += 1
+        return f"t{self.var_counter}"
+
+    def generate_tmp_id(self, type="I"):
+        res = self.__gen()
 
         while res in self.symtab:
-            if tries < MAX_TRIES:
-                tries += 1
-            else:
-                tries = 0
-                GEN_SIZE += 1
-            size = random.randint(1, GEN_SIZE)
-            res = CPLParser.__gen(size)
+            res = CPLParser.__gen()
 
         self.symtab[res] = type
         return res
 
+    def cast(self, to, expr):
+        tmp = self.generate_tmp_id(to)
+        _from = "R" if to == "I" else "I"
+        self.code += f"{_from}TO{to} {tmp} {expr}\n"
+        return tmp
+
     @_("declarations stmt_block")
     def program(self, p):
+        self.error_queue.print()
         return f"{self.code}HALT\n"
 
     # PART A - Declarations, DOES NOT GENERATE CODE
@@ -159,6 +241,9 @@ class CPLParser(Parser):
 
     @_("ID ASSIGN expression SEMICOLON")
     def assignment_stmt(self, p):
+        if self.determine_expressions_prefix(p.lineno, p.ID, p.expression) == ERR:
+            self.code = ""
+            return ""
         return f"{self.symtab[p.ID]}ASN {p.ID} {p.expression}\n"
 
     @_("INPUT LBRACE ID RBRACE SEMICOLON")
@@ -216,10 +301,20 @@ class CPLParser(Parser):
 
     @_("expression ADDOP term")
     def expression(self, p):
-        prefix = self.determine_expressions_prefix(p.expression, p.term)
-        tmp = self.random_id_generator(prefix)
+        expression = p.expression
+        term = p.term
+        prefix, which_cast, cast_var = self.determine_prefix_noerror(
+            p.expression, p.term
+        )
+        if cast_var:
+            if which_cast == 1:
+                expression = cast_var
+            else:
+                term = cast_var
+
+        tmp = self.generate_tmp_id(prefix)
         instruction = "ADD" if p.ADDOP == "+" else "SUB"
-        self.code += f"{prefix}{instruction} {tmp} {p.term} {p.expression}\n"
+        self.code += f"{prefix}{instruction} {tmp} {expression} {term}\n"
         return tmp
 
     @_("term")
@@ -228,10 +323,18 @@ class CPLParser(Parser):
 
     @_("term MULOP factor")
     def term(self, p):
-        prefix = self.determine_expressions_prefix(p.term, p.factor)
-        tmp = self.random_id_generator(prefix)
+        term = p.term
+        factor = p.factor
+        prefix, which_cast, cast_var = self.determine_prefix_noerror(p.term, p.factor)
+        if cast_var:
+            if which_cast == 1:
+                term = cast_var
+            else:
+                factor = cast_var
+
+        tmp = self.generate_tmp_id(prefix)
         instruction = "MLT" if p.MULOP == "*" else "DIV"
-        self.code += f"{prefix}{instruction} {tmp} {p.term} {p.factor}\n"
+        self.code += f"{prefix}{instruction} {tmp} {term} {factor}\n"
         return tmp
 
     @_("factor")
@@ -245,11 +348,9 @@ class CPLParser(Parser):
     @_("CAST LBRACE expression RBRACE")
     def factor(self, p):
         if "int" in p.CAST:
-            self.symtab[p.expression] = "I"
-            return f"RTOI {p.expression}\n"
-
-        self.symtab[p.expression] = "R"
-        return f"ITOR {p.expression}\n"
+            return self.cast("I", p.expression)
+        else:
+            return self.cast("R", p.expression)
 
     @_("ID", "NUM")
     def factor(self, p):

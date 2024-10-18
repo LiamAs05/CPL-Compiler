@@ -1,14 +1,18 @@
 RINP a
 RINP b
 IINP c
-RMLT t3 5 3.2
-RASN b t3
-RMLT t1 2 b
-RADD t6 t1 a
-RMLT t0 5 t6
-RADD t5 t0 b
-RMLT t7 b t5
-RADD t9 c t7
-RASN a t9
+ITOR t1 5
+RMLT t2 t1 3.2
+RASN b t2
+ITOR t3 2
+RMLT t4 t3 b
+RADD t5 a t4
+ITOR t6 5
+RMLT t7 t6 t5
+RADD t8 b t7
+RMLT t9 b t8
+ITOR t10 c
+RADD t11 t9 t10
+RASN a t11
 HALT
 Signature Line - Liam Aslan, 215191347

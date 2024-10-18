@@ -22,7 +22,7 @@ def get_args() -> Tuple[str, str]:
 
     if not filename.endswith(".ou"):
         raise KeyError('Invalid Filename: Filenames must end with ".ou" extension')
-    
+
     with open(filename, "r") as f:
         data = f.read()
 
