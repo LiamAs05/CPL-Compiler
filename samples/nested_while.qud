@@ -1,0 +1,21 @@
+IINP a
+IINP b
+JMP L4
+L3:
+ISUB t2 a 1
+IASN a t2
+JMP L2
+L1:
+ISUB t4 b 1
+IASN b t4
+L2:
+IGRT t3 b 3
+ISUB t3 1 t3
+JMPZ L1 t3
+IPRT a
+L4:
+IGRT t1 a 5
+ISUB t1 1 t1
+JMPZ L3 t1
+HALT
+Signature Line - Liam Aslan, 215191347

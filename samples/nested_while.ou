@@ -1,0 +1,13 @@
+a, b: int;
+
+{
+    input(a);
+    input(b);
+    while (a > 5) {
+        a = a - 1;
+        while (b > 3) {
+            b = b - 1;
+        }
+        output(a);
+    }
+}
