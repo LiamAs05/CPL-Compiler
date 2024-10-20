@@ -29,11 +29,11 @@ class CPLLexer(Lexer):
         AND,
         NOT,
         CAST,
-        COMMENT,
     }
 
     # String containing ignored characters
-    ignore = r" "
+    ignore = r" \t"
+    ignore_comment = r"\/\*[^*]*\*+([^\/*][^*]*\*+)*\/"
 
     # Regular expression rules for tokens
     ELSE = r"else"
@@ -56,7 +56,6 @@ class CPLLexer(Lexer):
     CAST = r"(static_cast<int>)|(static_cast<float>)"
     ID = r"[a-zA-Z]([a-zA-Z]|[0-9])*"
     ADDOP = r"[+-]"
-    COMMENT = r"\/\*[^*]*\*+([^\/*][^*]*\*+)*\/"
     MULOP = r"[*/]"
     OR = r"\|\|"
     AND = r"&&"

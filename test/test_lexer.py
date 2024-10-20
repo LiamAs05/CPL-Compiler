@@ -10,16 +10,12 @@ def lexer():
 def test_tokens(lexer):
     # Test token recognition
     tokens = [
-        ("break", "BREAK"),
-        ("case", "CASE"),
-        ("default", "DEFAULT"),
         ("else", "ELSE"),
         ("float", "FLOAT"),
         ("if", "IF"),
         ("input", "INPUT"),
         ("int", "INT"),
         ("output", "OUTPUT"),
-        ("switch", "SWITCH"),
         ("while", "WHILE"),
         ("{", "LCBRACE"),
         ("}", "RCBRACE"),
@@ -38,7 +34,6 @@ def test_tokens(lexer):
         ("&&", "AND"),
         ("!", "NOT"),
         ("static_cast<int>", "CAST"),
-        ("/* Comment */", "COMMENT"),
     ]
 
     for input_text, expected_token in tokens:

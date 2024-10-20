@@ -6,16 +6,22 @@ from CPLCompiler import CPLCompiler
 
 
 def main(data: str, outfile: str):
-    compiler = CPLCompiler(data)
-    compiler.run()
-    print(compiler.program)
+    sys.stderr.write("Signature Line - Liam Aslan, 215191347\n")
 
-    with open(outfile, "w") as f:
-        f.write(compiler.program)
-        f.write("Signature Line - Liam Aslan, 215191347")
+    with CPLCompiler(data, outfile) as compiler:
+        print(compiler.program)
 
 
 def get_args() -> Tuple[str, str]:
+    """
+    Internal functions to handle arguments
+
+    Raises:
+        KeyError: In case filenames does not end with `.ou`
+
+    Returns:
+        Tuple[str, str]: file contents and file name
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="CPL program file")
     filename = parser.parse_args().input
@@ -32,7 +38,8 @@ def get_args() -> Tuple[str, str]:
 
 if __name__ == "__main__":
     try:
-        sys.stderr.write("Signature Line - Liam Aslan, 215191347\n")
         main(*get_args())
     except KeyboardInterrupt:
         sys.stderr.write("Exiting...")
+    except Exception as e:
+        sys.stderr.write(f"An unhandled exception has occurred.\n{e.with_traceback()}")

@@ -1,0 +1,8 @@
+JMP L2
+L1:
+IASN a t2
+L2:
+IGRT t1 a 5
+JMPZ L1 t1
+HALT
+Signature Line - Liam Aslan, 215191347

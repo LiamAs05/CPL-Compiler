@@ -1,0 +1,32 @@
+RINP a
+IINP c
+IASN d 4
+RDIV t1 a b
+RASN b t1
+IDIV t2 c d
+IASN c t2
+RDIV t3 a b
+RPRT t3
+IDIV t4 c d
+IPRT t4
+ITOR t5 c
+RDIV t6 a t5
+RPRT t6
+ITOR t7 d
+RDIV t8 t7 b
+RPRT t8
+IDIV t9 5 2
+IPRT t9
+ITOR t10 5
+RDIV t11 t10 2.0
+RPRT t11
+ITOR t12 2
+RDIV t13 5.0 t12
+RPRT t13
+ITOR t14 2
+RDIV t15 b t14
+RPRT t15
+IDIV t16 c 2
+IPRT t16
+HALT
+Signature Line - Liam Aslan, 215191347

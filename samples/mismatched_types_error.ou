@@ -1,0 +1,6 @@
+a:  float;
+b:  int;
+
+{
+    a   =   b;
+}

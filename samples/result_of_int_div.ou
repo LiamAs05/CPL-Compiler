@@ -1,0 +1,21 @@
+a, b: float;
+c, d: int;
+
+{
+    input(a);
+    input(c);
+    
+    d = 4;
+
+    b = a / b;
+    c = c / d;
+    output(a/b);
+    output(c/d);
+    output(a/c);
+    output(d/b);
+    output(5/2);
+    output(5/2.0);
+    output(5.0/2);
+    output(b/2);
+    output(c/2);
+}

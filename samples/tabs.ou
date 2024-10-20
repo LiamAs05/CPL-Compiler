@@ -1,0 +1,7 @@
+a:  float;
+b:  int;
+
+{
+    input(a);
+    input(b);
+}

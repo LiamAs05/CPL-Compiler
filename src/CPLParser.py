@@ -1,5 +1,6 @@
 # type: ignore
 
+import sys
 from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
@@ -19,6 +20,10 @@ def is_number(s: str):
 class IDList:
     l: List[str]
 
+@dataclass
+class QuadResult:
+    code: str
+    value: str
 
 class Stack:
     def __init__(self):
@@ -55,32 +60,58 @@ class CPLParser(Parser):
 
     def __init__(self):
         self._symtab: Dict[str, str] = {}
-        self.code: str = ""
         self.label_counter = 0  # Increment after using
         self.var_counter = 0
-        self.label_stack = Stack()
         self.error_queue = Queue()
 
-    def relop_to_instruction(self, expr1, expr2, relop):
-        prefix = self.symtab.get(expr1) or self.symtab.get(expr2)
-        var = self.generate_tmp_id()
-        code = {
+    def generate_while_stmt(self, boolexpr, boolexpr_res, stmt) -> QuadResult:
+        start_label = self.generate_label()
+        end_label = self.generate_label()
+        code_to_add = f"JMP {end_label}\n"
+        code_to_add += f"{start_label}:\n"
+        code_to_add += stmt
+        code_to_add += f"{end_label}:\n"
+        code_to_add += boolexpr
+        code_to_add += f"JMPZ {start_label} {boolexpr_res}\n"
+        return QuadResult(code_to_add, "")
+
+    def relop_to_instruction(self, expr1, expr2, relop) -> QuadResult:
+        """
+        Translates RELOP tokens into QUAD instructions.
+        For operators which are not ">=" and "<=" the translation is trivial.
+        For ">=" and "<=" we check both conditions and perform an OR between them.
+        """
+        code = ""
+        prefix, index, res = self.determine_prefix_noerror(expr1, expr2)
+        if res:
+            if index == 1:
+                expr1 = res
+            else:
+                expr2 = res
+        condition_result = self.generate_tmp_id()
+        translator = lambda var, type: {
             "==": f"{prefix}EQL {var} {expr1} {expr2}\n",
-            "!=": f"{prefix}NQL {var} {expr1} {expr2}",
-            "<": f"{prefix}LSS {var} {expr1} {expr2}",
-            ">": f"{prefix}GRT {var} {expr1} {expr2}",
-            ">=": f"{prefix}GRT {var} {expr1} {expr2}\n\
-                JMPZ L{self.label_counter} {var}\n\
-                {prefix}EQL {var} {expr1} {expr2}\n\
-                L{self.label_counter}:",
-            "<=": f"{prefix}LSS {var} {expr1} {expr2}\n\
-                JMPZ L{self.label_counter} {var}\n\
-                {prefix}EQL {var} {expr1} {expr2}\n\
-                L{self.label_counter}:",
-        }[relop]
+            "!=": f"{prefix}NQL {var} {expr1} {expr2}\n",
+            "<": f"{prefix}LSS {var} {expr1} {expr2}\n",
+            ">": f"{prefix}GRT {var} {expr1} {expr2}\n",
+        }[type]
+
         if relop in [">=", "<="]:
-            self.label_counter += 1
-        return code
+            second_condition_result = self.generate_tmp_id()
+            code += translator(condition_result, "==")
+            code += translator(second_condition_result, relop[0])
+            condition_result = self.generate_or(
+                condition_result, second_condition_result
+            )
+        else:
+            code += translator(condition_result, relop)
+        return QuadResult(code, condition_result)
+
+    def generate_or(self, boolexpr, boolterm) -> QuadResult:
+        tmp = self.generate_tmp_id()
+        code = f"IADD {tmp} {boolexpr} {boolterm}\n"
+        code += f"IGRT {tmp} {tmp} {0}\n"
+        return QuadResult(code, tmp)
 
     def determine_prefix(self, expr: str) -> str:
         """
@@ -155,9 +186,45 @@ class CPLParser(Parser):
 
         return "R", 2, self.cast("R", expr2)
 
+    def generate_mulop(self, mulop, term, factor) -> QuadResult:
+        prefix, which_cast, cast_var = self.determine_prefix_noerror(
+            term,
+            factor,
+        )
+        if cast_var:
+            if which_cast == 1:
+                term = cast_var
+            else:
+                factor = cast_var
+
+        tmp = self.generate_tmp_id(prefix)
+        instruction = "MLT" if mulop == "*" else "DIV"
+        code = f"{prefix}{instruction} {tmp} {term} {factor}\n"
+        return QuadResult(code, tmp)
+
+    def generate_addop(self, addop, expr, term):
+        prefix, which_cast, cast_var = self.determine_prefix_noerror(
+            expr,
+            term,
+        )
+        if cast_var:
+            if which_cast == 1:
+                expr = cast_var
+            else:
+                term = cast_var
+
+        tmp = self.generate_tmp_id(prefix)
+        instruction = "ADD" if addop == "+" else "SUB"
+        code = f"{prefix}{instruction} {tmp} {expr} {term}\n"
+        return QuadResult(code, tmp)
+
     def __gen(self):
         self.var_counter += 1
         return f"t{self.var_counter}"
+
+    def __gen_label(self):
+        self.label_counter += 1
+        return f"L{self.label_counter}"
 
     def generate_tmp_id(self, type="I"):
         res = self.__gen()
@@ -168,16 +235,19 @@ class CPLParser(Parser):
         self.symtab[res] = type
         return res
 
+    def generate_label(self):
+        return self.__gen_label()
+
     def cast(self, to, expr):
         tmp = self.generate_tmp_id(to)
         _from = "R" if to == "I" else "I"
-        self.code += f"{_from}TO{to} {tmp} {expr}\n"
-        return tmp
+        return QuadResult(f"{_from}TO{to} {tmp} {expr}\n", tmp)
 
     @_("declarations stmt_block")
     def program(self, p):
         self.error_queue.print()
-        return f"{self.code}HALT\n"
+        code = p.stmt_block.code or ""
+        return f"{code}HALT\n"
 
     # PART A - Declarations, DOES NOT GENERATE CODE
 
@@ -217,151 +287,139 @@ class CPLParser(Parser):
 
     @_("assignment_stmt")
     def stmt(self, p):
-        self.code += p.assignment_stmt
+        return QuadResult(p.assignment_stmt.code, "")
 
     @_("input_stmt")
     def stmt(self, p):
-        self.code += p.input_stmt
+        return QuadResult(p.input_stmt.code, "")
 
     @_("output_stmt")
     def stmt(self, p):
-        self.code += p.output_stmt
+        return QuadResult(p.output_stmt.code, "")
 
     @_("if_stmt")
     def stmt(self, p):
-        self.code += p.if_stmt
+        return QuadResult(p.if_stmt.code, "")
 
     @_("while_stmt")
     def stmt(self, p):
-        self.code += p.while_stmt
+        return QuadResult(p.while_stmt.code, "")
 
     @_("stmt_block")
     def stmt(self, p):
-        self.code += p.stmt_block
+        return QuadResult(p.stmt_block.code or "", "")
 
     @_("ID ASSIGN expression SEMICOLON")
-    def assignment_stmt(self, p):
-        if self.determine_expressions_prefix(p.lineno, p.ID, p.expression) == ERR:
-            self.code = ""
+    def assignment_stmt(self, p) -> QuadResult:
+        if self.determine_expressions_prefix(p.lineno, p.ID, p.expression.value) == ERR:
             return ""
-        return f"{self.symtab[p.ID]}ASN {p.ID} {p.expression}\n"
+        code = f"{self.symtab[p.ID]}ASN {p.ID} {p.expression.value}\n"
+        return QuadResult(code, "")
 
     @_("INPUT LBRACE ID RBRACE SEMICOLON")
-    def input_stmt(self, p):
-        return f"{self.symtab[p.ID]}INP {p.ID}\n"
+    def input_stmt(self, p) -> QuadResult:
+        code = f"{self.symtab[p.ID]}INP {p.ID}\n"
+        return QuadResult(code, "")
 
     @_("OUTPUT LBRACE expression RBRACE SEMICOLON")
-    def output_stmt(self, p):
-        return f"{self.symtab[p.expression]}PRT {p.expression}\n"
+    def output_stmt(self, p) -> QuadResult:
+        code = f"{self.symtab[p.expression.value]}PRT {p.expression.value}\n"
+        return QuadResult(code, "")
 
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
     def if_stmt(self, p):
         pass
 
     @_("WHILE LBRACE boolexpr RBRACE stmt")
-    def while_stmt(self, p):
-        pass
+    def while_stmt(self, p) -> QuadResult:
+        return self.generate_while_stmt(p.boolexpr.code, p.boolexpr.value, p.stmt.code)
 
     @_("LCBRACE stmtlist RCBRACE")
-    def stmt_block(self, p):
-        self.code += p.stmtlist or ""
+    def stmt_block(self, p) -> QuadResult:
+        return QuadResult(p.stmtlist.code or "", "")
 
     @_("stmtlist stmt")
-    def stmtlist(self, p):
-        self.code += p.stmtlist or ""
-        self.code += p.stmt or ""
+    def stmtlist(self, p) -> QuadResult:
+        code = p.stmtlist.code or ""
+        code += p.stmt.code or ""
+        return QuadResult(code, "")
 
     @_("")
-    def stmtlist(self, p):
-        pass
+    def stmtlist(self, p) -> QuadResult:
+        return QuadResult("", "")
 
     @_("boolexpr OR boolterm")
-    def boolexpr(self, p):
-        pass
+    def boolexpr(self, p) -> QuadResult:
+        return self.generate_or(p.boolexpr.value, p.boolterm.value)
 
     @_("boolterm")
     def boolexpr(self, p):
-        pass
+        return QuadResult(p.boolterm.code, p.boolterm.value)
 
     @_("boolterm AND boolfactor")
-    def boolterm(self, p):
-        pass
+    def boolterm(self, p) -> QuadResult:
+        tmp = self.generate_tmp_id()
+        code = f"IMLT {tmp} {p.boolterm.value} {p.boolfactor.value}\n"
+        return QuadResult(code, tmp)
 
     @_("boolfactor")
-    def boolterm(self, p):
-        return p.boolfactor
+    def boolterm(self, p) -> QuadResult:
+        return QuadResult(p.boolfactor.code, p.boolfactor.value)
 
     @_("NOT LBRACE boolexpr RBRACE")
-    def boolfactor(self, p):
-        pass
+    def boolfactor(self, p) -> QuadResult:
+        tmp = self.generate_tmp_id()
+        code = f"ISUB {tmp} {1} {p.boolexpr.value}\n"
+        return QuadResult(code, tmp)
 
     @_("expression RELOP expression")
-    def boolfactor(self, p):
-        return self.relop_to_instruction(p.expression0, p.expression1, p.RELOP)
+    def boolfactor(self, p) -> QuadResult:
+        return self.relop_to_instruction(p.expression0.value, p.expression1.value, p.RELOP)
 
     @_("expression ADDOP term")
-    def expression(self, p):
-        expression = p.expression
-        term = p.term
-        prefix, which_cast, cast_var = self.determine_prefix_noerror(
-            p.expression, p.term
-        )
-        if cast_var:
-            if which_cast == 1:
-                expression = cast_var
-            else:
-                term = cast_var
-
-        tmp = self.generate_tmp_id(prefix)
-        instruction = "ADD" if p.ADDOP == "+" else "SUB"
-        self.code += f"{prefix}{instruction} {tmp} {expression} {term}\n"
-        return tmp
+    def expression(self, p) -> QuadResult:
+        return self.generate_addop(p.ADDOP, p.expression.value, p.term.value)
 
     @_("term")
-    def expression(self, p):
-        return p.term
+    def expression(self, p) -> QuadResult:
+        return QuadResult(p.term.code, p.term.value)
 
     @_("term MULOP factor")
-    def term(self, p):
-        term = p.term
-        factor = p.factor
-        prefix, which_cast, cast_var = self.determine_prefix_noerror(p.term, p.factor)
-        if cast_var:
-            if which_cast == 1:
-                term = cast_var
-            else:
-                factor = cast_var
-
-        tmp = self.generate_tmp_id(prefix)
-        instruction = "MLT" if p.MULOP == "*" else "DIV"
-        self.code += f"{prefix}{instruction} {tmp} {term} {factor}\n"
-        return tmp
+    def term(self, p) -> QuadResult:
+        return self.generate_mulop(p.MULOP, p.term.value, p.factor.value)
 
     @_("factor")
-    def term(self, p):
-        return p.factor
+    def term(self, p) -> QuadResult:
+        return QuadResult("", p.factor.value)
 
     @_("LBRACE expression RBRACE")
-    def factor(self, p):
-        return p.expression
+    def factor(self, p) -> QuadResult:
+        return QuadResult("", p.expression.value)
 
     @_("CAST LBRACE expression RBRACE")
-    def factor(self, p):
+    def factor(self, p) -> QuadResult:
         if "int" in p.CAST:
-            return self.cast("I", p.expression)
-        else:
-            return self.cast("R", p.expression)
+            return self.cast("I", p.expression.value)
+        return self.cast("R", p.expression.value)
 
     @_("ID", "NUM")
-    def factor(self, p):
-        return p[0]
+    def factor(self, p) -> QuadResult:
+        return QuadResult("", p[0])
 
     def error(self, p):
+        """
+        Documents actual parsing errors (and not schematic errors, such as mismatched types)
+
+        Examples include:
+
+        -   A program without {}
+        -   not assigning the result of a cast
+        """
         if not p:
             print("End of File!")
             return
 
-        print(rf"An error was found in line {p.lineno}".upper())
+        sys.stderr.write(rf"An error was found in line {p.lineno}".upper())
 
         while True:
             tok = next(self.tokens, None)
