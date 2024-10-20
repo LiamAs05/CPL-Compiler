@@ -72,6 +72,7 @@ class CPLParser(Parser):
         code_to_add += stmt
         code_to_add += f"{end_label}:\n"
         code_to_add += boolexpr
+        code_to_add += f"ISUB {boolexpr_res} {1} {boolexpr_res}\n"
         code_to_add += f"JMPZ {start_label} {boolexpr_res}\n"
         return QuadResult(code_to_add, "")
 
@@ -82,12 +83,12 @@ class CPLParser(Parser):
         For ">=" and "<=" we check both conditions and perform an OR between them.
         """
         code = ""
-        prefix, index, res = self.determine_prefix_noerror(expr1, expr2)
-        if res:
+        prefix, index, cast_var = self.determine_prefix_noerror(expr1, expr2)
+        if cast_var.value:
             if index == 1:
-                expr1 = res
+                expr1 = cast_var.value
             else:
-                expr2 = res
+                expr2 = cast_var.value
         condition_result = self.generate_tmp_id()
         translator = lambda var, type: {
             "==": f"{prefix}EQL {var} {expr1} {expr2}\n",
@@ -105,7 +106,7 @@ class CPLParser(Parser):
             )
         else:
             code += translator(condition_result, relop)
-        return QuadResult(code, condition_result)
+        return QuadResult(cast_var.code + code, condition_result)
 
     def generate_or(self, boolexpr, boolterm) -> QuadResult:
         tmp = self.generate_tmp_id()
@@ -156,7 +157,7 @@ class CPLParser(Parser):
             return "R"
         return "I"
 
-    def determine_prefix_noerror(self, expr1, expr2) -> Tuple[str, int, str]:
+    def determine_prefix_noerror(self, expr1, expr2) -> Tuple[str, int, QuadResult]:
         """
         For use with functions that require implicit casting,
         for example addition and multiplication, where two mismatched operands don't result in an error.
@@ -170,7 +171,7 @@ class CPLParser(Parser):
 
             -   instruction prefix
             -   cast operand index
-            -   cast result
+            -   cast result -- value and code
 
             if a cast was performed the second and third return values indicate which variable to replace with the cast result.
             if a cast wasn't performed they are 0 and None.
@@ -179,7 +180,7 @@ class CPLParser(Parser):
         expr2_prefix = self.determine_prefix(expr2)
 
         if expr1_prefix == expr2_prefix:
-            return expr1_prefix, 0, None
+            return expr1_prefix, 0, QuadResult("", "")
 
         if expr1_prefix == "I":
             return "R", 1, self.cast("R", expr1)
@@ -191,32 +192,32 @@ class CPLParser(Parser):
             term,
             factor,
         )
-        if cast_var:
+        if cast_var.value:
             if which_cast == 1:
-                term = cast_var
+                term = cast_var.value
             else:
-                factor = cast_var
+                factor = cast_var.value
 
         tmp = self.generate_tmp_id(prefix)
         instruction = "MLT" if mulop == "*" else "DIV"
         code = f"{prefix}{instruction} {tmp} {term} {factor}\n"
-        return QuadResult(code, tmp)
+        return QuadResult(cast_var.code + code, tmp)
 
     def generate_addop(self, addop, expr, term):
         prefix, which_cast, cast_var = self.determine_prefix_noerror(
             expr,
             term,
         )
-        if cast_var:
+        if cast_var.value:
             if which_cast == 1:
-                expr = cast_var
+                expr = cast_var.value
             else:
-                term = cast_var
+                term = cast_var.value
 
         tmp = self.generate_tmp_id(prefix)
         instruction = "ADD" if addop == "+" else "SUB"
         code = f"{prefix}{instruction} {tmp} {expr} {term}\n"
-        return QuadResult(code, tmp)
+        return QuadResult(cast_var.code + code, tmp)
 
     def __gen(self):
         self.var_counter += 1
@@ -238,7 +239,7 @@ class CPLParser(Parser):
     def generate_label(self):
         return self.__gen_label()
 
-    def cast(self, to, expr):
+    def cast(self, to, expr) -> QuadResult:
         tmp = self.generate_tmp_id(to)
         _from = "R" if to == "I" else "I"
         return QuadResult(f"{_from}TO{to} {tmp} {expr}\n", tmp)
@@ -314,7 +315,7 @@ class CPLParser(Parser):
         if self.determine_expressions_prefix(p.lineno, p.ID, p.expression.value) == ERR:
             return ""
         code = f"{self.symtab[p.ID]}ASN {p.ID} {p.expression.value}\n"
-        return QuadResult(code, "")
+        return QuadResult(p.expression.code + code, "")
 
     @_("INPUT LBRACE ID RBRACE SEMICOLON")
     def input_stmt(self, p) -> QuadResult:
@@ -324,7 +325,7 @@ class CPLParser(Parser):
     @_("OUTPUT LBRACE expression RBRACE SEMICOLON")
     def output_stmt(self, p) -> QuadResult:
         code = f"{self.symtab[p.expression.value]}PRT {p.expression.value}\n"
-        return QuadResult(code, "")
+        return QuadResult(p.expression.code + code, "")
 
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
     def if_stmt(self, p):
@@ -340,9 +341,7 @@ class CPLParser(Parser):
 
     @_("stmtlist stmt")
     def stmtlist(self, p) -> QuadResult:
-        code = p.stmtlist.code or ""
-        code += p.stmt.code or ""
-        return QuadResult(code, "")
+        return QuadResult(p.stmtlist.code + p.stmt.code, "")
 
     @_("")
     def stmtlist(self, p) -> QuadResult:
@@ -378,23 +377,25 @@ class CPLParser(Parser):
 
     @_("expression ADDOP term")
     def expression(self, p) -> QuadResult:
-        return self.generate_addop(p.ADDOP, p.expression.value, p.term.value)
+        res = self.generate_addop(p.ADDOP, p.expression.value, p.term.value)
+        return QuadResult(p.expression.code + p.term.code + res.code, res.value)
 
     @_("term")
     def expression(self, p) -> QuadResult:
-        return QuadResult(p.term.code, p.term.value)
+        return p.term
 
     @_("term MULOP factor")
     def term(self, p) -> QuadResult:
-        return self.generate_mulop(p.MULOP, p.term.value, p.factor.value)
+        res = self.generate_mulop(p.MULOP, p.term.value, p.factor.value)
+        return QuadResult(p.term.code + p.factor.code + res.code, res.value)
 
     @_("factor")
     def term(self, p) -> QuadResult:
-        return QuadResult("", p.factor.value)
+        return p.factor
 
     @_("LBRACE expression RBRACE")
     def factor(self, p) -> QuadResult:
-        return QuadResult("", p.expression.value)
+        return p.expression
 
     @_("CAST LBRACE expression RBRACE")
     def factor(self, p) -> QuadResult:
