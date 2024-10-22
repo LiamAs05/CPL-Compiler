@@ -4,7 +4,7 @@ a, b: float;
     input(a);
     input(b);
     if (a < b)
-    output(a); /* COMMENT */
+        output(a); /* COMMENT */
     else
-    output(b);
+        output(b);
 }

@@ -20,25 +20,16 @@ def is_number(s: str):
 class IDList:
     l: List[str]
 
+
 @dataclass
 class QuadResult:
     code: str
     value: str
 
-class Stack:
-    def __init__(self):
-        self._data = []
 
-    def pop(self):
-        return self._data.pop()
-
-    def push(self, x):
-        self._data.append(x)
-
-
+@dataclass
 class Queue:
-    def __init__(self):
-        self._data = []
+    _data: list[str]
 
     def pop(self):
         return self._data.pop(0)
@@ -62,18 +53,31 @@ class CPLParser(Parser):
         self._symtab: Dict[str, str] = {}
         self.label_counter = 0  # Increment after using
         self.var_counter = 0
-        self.error_queue = Queue()
+        self.error_queue = Queue([])
 
     def generate_while_stmt(self, boolexpr, boolexpr_res, stmt) -> QuadResult:
         start_label = self.generate_label()
         end_label = self.generate_label()
-        code_to_add = f"JMP {end_label}\n"
+        code_to_add = f"JUMP {end_label}\n"
         code_to_add += f"{start_label}:\n"
         code_to_add += stmt
         code_to_add += f"{end_label}:\n"
         code_to_add += boolexpr
         code_to_add += f"ISUB {boolexpr_res} {1} {boolexpr_res}\n"
         code_to_add += f"JMPZ {start_label} {boolexpr_res}\n"
+        return QuadResult(code_to_add, "")
+
+    def generate_if_stmt(self, boolexpr, boolexpr_res, stmt1, stmt2) -> QuadResult:
+        else_label = self.generate_label()
+        both_label = self.generate_label()
+
+        code_to_add = boolexpr
+        code_to_add += f"JMPZ {else_label} {boolexpr_res}\n"
+        code_to_add += stmt1
+        code_to_add += f"JUMP {both_label}\n"
+        code_to_add += f"{else_label}:\n"
+        code_to_add += stmt2
+        code_to_add += f"{both_label}:\n"
         return QuadResult(code_to_add, "")
 
     def relop_to_instruction(self, expr1, expr2, relop) -> QuadResult:
@@ -313,7 +317,7 @@ class CPLParser(Parser):
     @_("ID ASSIGN expression SEMICOLON")
     def assignment_stmt(self, p) -> QuadResult:
         if self.determine_expressions_prefix(p.lineno, p.ID, p.expression.value) == ERR:
-            return ""
+            return QuadResult("", "")
         code = f"{self.symtab[p.ID]}ASN {p.ID} {p.expression.value}\n"
         return QuadResult(p.expression.code + code, "")
 
@@ -329,7 +333,9 @@ class CPLParser(Parser):
 
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
     def if_stmt(self, p):
-        pass
+        return self.generate_if_stmt(
+            p.boolexpr.code, p.boolexpr.value, p.stmt0.code, p.stmt1.code
+        )
 
     @_("WHILE LBRACE boolexpr RBRACE stmt")
     def while_stmt(self, p) -> QuadResult:
@@ -373,7 +379,9 @@ class CPLParser(Parser):
 
     @_("expression RELOP expression")
     def boolfactor(self, p) -> QuadResult:
-        return self.relop_to_instruction(p.expression0.value, p.expression1.value, p.RELOP)
+        return self.relop_to_instruction(
+            p.expression0.value, p.expression1.value, p.RELOP
+        )
 
     @_("expression ADDOP term")
     def expression(self, p) -> QuadResult:

@@ -1,0 +1,11 @@
+RINP a
+RINP b
+RLSS t1 a b
+JMPZ L1 t1
+RPRT a
+JUMP L2
+L1:
+RPRT b
+L2:
+HALT
+Signature Line - Liam Aslan, 215191347
