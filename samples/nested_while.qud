@@ -1,10 +1,10 @@
 IINP a
 IINP b
-JMP L4
+JUMP L4
 L3:
 ISUB t2 a 1
 IASN a t2
-JMP L2
+JUMP L2
 L1:
 ISUB t4 b 1
 IASN b t4

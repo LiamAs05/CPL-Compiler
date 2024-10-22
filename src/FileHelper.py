@@ -1,6 +1,6 @@
 import argparse
 import sys
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 
 def get_args() -> Tuple[str, str]:
@@ -10,10 +10,10 @@ def get_args() -> Tuple[str, str]:
     Checks for the following errors:
     -   Filename was not provided
     -   Filename does not end with `.ou`
-    -   Filename is not a valid path 
+    -   Filename is not a valid path
 
     Shows an error message according to each case and exits with code 0.
-    
+
     Returns:
         Tuple[str, str]: file contents and output file name
     """
@@ -55,7 +55,7 @@ def attempt_to_read_file(filename: str) -> Optional[str]:
     """
     Tries to open and read a file, prints an error message if the file does not exist.
     Exits with 0 if the file could not be read.
-    
+
     Args:
         filename (str)
 

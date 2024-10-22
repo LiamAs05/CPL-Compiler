@@ -1,6 +1,6 @@
-import FileHelper
 import sys
 
+import FileHelper
 from CPLCompiler import CPLCompiler
 
 
@@ -8,7 +8,7 @@ def main(data: str, outfile: str):
     sys.stderr.write("Signature Line - Liam Aslan, 215191347\n")
 
     with CPLCompiler(data, outfile) as compiler:
-        print(compiler.program)
+        print(compiler.program or "")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 import sys
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sly import Parser
 
@@ -249,8 +249,17 @@ class CPLParser(Parser):
         return QuadResult(f"{_from}TO{to} {tmp} {expr}\n", tmp)
 
     @_("declarations stmt_block")
-    def program(self, p):
-        self.error_queue.print()
+    def program(self, p) -> Optional[str]:
+        """
+        Main grammer rule, will return the full quad program unless an error occured.
+
+        Returns:
+            Optional[str]
+        """
+        if not self.error_queue.empty():
+            self.error_queue.print()
+            return None
+
         code = p.stmt_block.code or ""
         return f"{code}HALT\n"
 
@@ -425,10 +434,12 @@ class CPLParser(Parser):
         -   not assigning the result of a cast
         """
         if not p:
-            print("End of File!")
+            sys.stderr.write(
+                "ERROR: The tokenized program does not match the grammer of a valid CPL program.\n"
+            )
             return
 
-        sys.stderr.write(rf"An error was found in line {p.lineno}".upper())
+        sys.stderr.write(f"An error was found in line {p.lineno}\n")
 
         while True:
             tok = next(self.tokens, None)
