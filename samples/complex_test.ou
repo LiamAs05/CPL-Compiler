@@ -1,0 +1,44 @@
+a, b: int;
+c, d: float;
+
+{
+    input(a);
+    input(b);
+    while (a > 5) {
+        a = a - 1;
+        while (b > 3) {
+            if (5 > 3)
+                b = b - 1;
+            else
+                b = b + 1;
+        }
+        output(a);
+    }
+    
+    if (!(a > b)) {
+        output(a);
+    }
+    else {
+        output(b);
+    }
+
+    input(a);
+    input(b);
+    input(c);
+    input(d);
+
+    output(a*b*c*d);
+    output(a*3*2+3*(33+2)*b*c+(d*(d+c)));
+
+    if (a > b && a > 5 || a > 20) {
+        output(a);
+    }
+    else {
+        output(b);
+    }
+
+    if (a >= b)
+        output(a);
+    else
+        output(b);
+}

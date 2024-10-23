@@ -1,0 +1,12 @@
+IEQL t1 5 3
+IGRT t2 5 3
+IADD t3 t1 t2
+IGRT t3 t3 0
+JMPZ L1 t3
+RPRT 1.1
+JUMP L2
+L1:
+IPRT 0
+L2:
+HALT
+Signature Line - Liam Aslan, 215191347

@@ -50,7 +50,7 @@ class CPLLexer(Lexer):
     COMMA = r","
     COLON = r":"
     SEMICOLON = r";"
-    RELOP = r"(==|!=|<|>|>=|<=)"
+    RELOP = r"(>=|<=|==|!=|<|>)"
     ASSIGN = r"="
     NUM = r"[0-9]+\.[0-9]*|[0-9]+"
     CAST = r"(static_cast<int>)|(static_cast<float>)"

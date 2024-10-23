@@ -8,7 +8,7 @@ def main(data: str, outfile: str):
     sys.stderr.write("Signature Line - Liam Aslan, 215191347\n")
 
     with CPLCompiler(data, outfile) as compiler:
-        print(compiler.program or "")
+        print(compiler.program or "", end="")
 
 
 if __name__ == "__main__":

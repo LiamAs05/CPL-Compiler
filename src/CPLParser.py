@@ -106,11 +106,16 @@ class CPLParser(Parser):
             code += translator(condition_result, "==")
             code += translator(second_condition_result, relop[0])
             condition_result = self.generate_or(
-                condition_result, second_condition_result
+                condition_result,
+                second_condition_result,
+            )
+            return QuadResult(
+                cast_var.code + code + condition_result.code,
+                condition_result.value,
             )
         else:
             code += translator(condition_result, relop)
-        return QuadResult(cast_var.code + code, condition_result)
+            return QuadResult(cast_var.code + code, condition_result)
 
     def generate_or(self, boolexpr, boolterm) -> QuadResult:
         tmp = self.generate_tmp_id()
@@ -325,19 +330,32 @@ class CPLParser(Parser):
 
     @_("ID ASSIGN expression SEMICOLON")
     def assignment_stmt(self, p) -> QuadResult:
-        if self.determine_expressions_prefix(p.lineno, p.ID, p.expression.value) == ERR:
+        prefix = self.determine_expressions_prefix(p.lineno, p.ID, p.expression.value)
+        if prefix == ERR:
             return QuadResult("", "")
-        code = f"{self.symtab[p.ID]}ASN {p.ID} {p.expression.value}\n"
+        code = f"{prefix}ASN {p.ID} {p.expression.value}\n"
         return QuadResult(p.expression.code + code, "")
 
     @_("INPUT LBRACE ID RBRACE SEMICOLON")
     def input_stmt(self, p) -> QuadResult:
-        code = f"{self.symtab[p.ID]}INP {p.ID}\n"
+        prefix = self.determine_prefix(p.ID)
+        if not prefix:
+            self.error_queue.push(
+                f"ERROR in line {p.lineno}: could not determine prefix of {p.ID}."
+            )
+            return QuadResult("", "")
+        code = f"{prefix}INP {p.ID}\n"
         return QuadResult(code, "")
 
     @_("OUTPUT LBRACE expression RBRACE SEMICOLON")
     def output_stmt(self, p) -> QuadResult:
-        code = f"{self.symtab[p.expression.value]}PRT {p.expression.value}\n"
+        prefix = self.determine_prefix(p.expression.value)
+        if not prefix:
+            self.error_queue.push(
+                f"ERROR in line {p.lineno}: could not determine prefix of {p.expression.value}."
+            )
+            return QuadResult("", "")
+        code = f"{prefix}PRT {p.expression.value}\n"
         return QuadResult(p.expression.code + code, "")
 
     @_("IF LBRACE boolexpr RBRACE stmt ELSE stmt")
@@ -364,17 +382,18 @@ class CPLParser(Parser):
 
     @_("boolexpr OR boolterm")
     def boolexpr(self, p) -> QuadResult:
-        return self.generate_or(p.boolexpr.value, p.boolterm.value)
+        res = self.generate_or(p.boolexpr.value, p.boolterm.value)
+        return QuadResult(p.boolexpr.code + p.boolterm.code + res.code, res.value)
 
     @_("boolterm")
     def boolexpr(self, p):
-        return QuadResult(p.boolterm.code, p.boolterm.value)
+        return p.boolterm
 
     @_("boolterm AND boolfactor")
     def boolterm(self, p) -> QuadResult:
         tmp = self.generate_tmp_id()
         code = f"IMLT {tmp} {p.boolterm.value} {p.boolfactor.value}\n"
-        return QuadResult(code, tmp)
+        return QuadResult(p.boolterm.code + p.boolfactor.code + code, tmp)
 
     @_("boolfactor")
     def boolterm(self, p) -> QuadResult:
@@ -384,17 +403,24 @@ class CPLParser(Parser):
     def boolfactor(self, p) -> QuadResult:
         tmp = self.generate_tmp_id()
         code = f"ISUB {tmp} {1} {p.boolexpr.value}\n"
-        return QuadResult(code, tmp)
+        return QuadResult(p.boolexpr.code + code, tmp)
 
     @_("expression RELOP expression")
     def boolfactor(self, p) -> QuadResult:
-        return self.relop_to_instruction(
-            p.expression0.value, p.expression1.value, p.RELOP
+        res = self.relop_to_instruction(
+            p.expression0.value,
+            p.expression1.value,
+            p.RELOP,
         )
+        return QuadResult(p.expression0.code + p.expression1.code + res.code, res.value)
 
     @_("expression ADDOP term")
     def expression(self, p) -> QuadResult:
-        res = self.generate_addop(p.ADDOP, p.expression.value, p.term.value)
+        res = self.generate_addop(
+            p.ADDOP,
+            p.expression.value,
+            p.term.value,
+        )
         return QuadResult(p.expression.code + p.term.code + res.code, res.value)
 
     @_("term")
@@ -403,7 +429,11 @@ class CPLParser(Parser):
 
     @_("term MULOP factor")
     def term(self, p) -> QuadResult:
-        res = self.generate_mulop(p.MULOP, p.term.value, p.factor.value)
+        res = self.generate_mulop(
+            p.MULOP,
+            p.term.value,
+            p.factor.value,
+        )
         return QuadResult(p.term.code + p.factor.code + res.code, res.value)
 
     @_("factor")

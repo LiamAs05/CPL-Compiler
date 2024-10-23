@@ -28,6 +28,8 @@ def test_tokens(lexer):
         ("123", "NUM"),
         ("identifier", "ID"),
         ("==", "RELOP"),
+        (">=", "RELOP"),
+        ("<=", "RELOP"),
         ("+", "ADDOP"),
         ("*", "MULOP"),
         ("||", "OR"),
